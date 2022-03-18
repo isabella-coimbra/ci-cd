@@ -1,0 +1,13 @@
+---
+  - name: Playbook Swift
+    hosts: all
+    vars_files:
+      - roles/docker/templates/vars/default.yml
+    vars:
+      user_docker: ''
+      password_docker: ''
+      email_docker: ''
+      repository_docker: ''
+    roles:
+      - packages
+      - docker

@@ -1,0 +1,111 @@
+---
+    # Start docker service
+    - name: Start docker
+      systemd:
+        name: docker
+        state: started
+        daemon_reload: yes
+        enabled: yes
+      become: true
+      tags:
+        - init_docker
+
+    - name: Pull default Docker image
+      docker_image:
+        name: "{{ default_container_image }}"
+        source: pull
+      become: true
+      tags: pull_docker
+
+    # Creates the number of containers defined by the variable create_containers, using values from vars file
+    - name: Create default containers
+      docker_container:
+        name: "{{ default_container_name }}{{ item }}"
+        image: "{{ default_container_image }}"
+        command: "{{ default_container_command }}"
+        state: present
+      with_sequence: count={{ create_containers }}
+      become: true
+      tags: create_containers_docker
+
+    - name: Copy image to the host 
+      copy:
+        src: templates/Dockerfile
+        dest: /opt/Dockerfile
+        owner: root
+        group: root
+      become: true
+      tags:
+        - copy_image_docker
+
+    - name: Build an image node
+      docker_image:
+        path: /opt/Dockerfile
+        name: node
+        tag: 1.0
+      become: true
+      tags: create_image_docker
+
+    - name: Create default containers
+      docker_container:
+        name: node-app
+        image: node
+        ports: 
+          - "8080:3000"
+        state: present
+        detach: yes
+      become: true
+      tags: create_container_node_docker
+
+    # DOCKERHUB
+    - name: Log into DockerHub to push image
+      docker_login:
+        username: '{{user_docker}}'
+        password: '{{password_docker}}'
+        email: '{{email_docker}}'
+      become: true
+      tags: dockerhub
+
+    - name: Tag and push image to docker hub
+      docker_image:
+        name: node
+        repository: '{{repository_docker}}'
+        tag: 1.0
+        push: yes
+      become: true
+      tags: dockerhub
+
+    # NETWORK
+    - name: Create a network
+      docker_network:
+        name: network_node
+      become: true
+      tags: network
+
+    - name: Add a container to a network
+      docker_network:
+        name: network_node
+        connected:
+          - node-app
+          - docker
+        appends: yes
+      become: true
+      tags: network
+
+    # DATABASE
+    - name: Pull mongo Docker image
+      docker_image:
+        name: mongo
+        source: pull
+      become: true
+      tags: mongo
+
+    - name: Creates mongo container and connected database to network 
+      docker_container:
+        name: mongo_db
+        image: mongo
+        state: present
+        networks:
+          - name: network_node
+      become: true
+      tags: mongo_create_container
