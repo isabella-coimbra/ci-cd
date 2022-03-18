@@ -1,4 +1,4 @@
-# CI/CD
+# Docker-Ansible
 
 ## Description
 Running docker on a machine on GCP, provisioning it via terraform and ansible.
